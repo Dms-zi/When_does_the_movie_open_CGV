@@ -125,7 +125,6 @@ def home():
    <html lang="ko">
    <head>
       <title>CGV 예매 오픈 알리미</title>
-      <link rel="shortcut icon" href="https://raw.githubusercontent.com/0w0i0n0g0/cgv-open-push/main/img/logo.png">
       <link rel="preconnect" href="https://fonts.googleapis.com">
       <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
       <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic+Coding&family=Orbit&display=swap" rel="stylesheet">

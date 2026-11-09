@@ -1,0 +1,20 @@
+name = "uijeongbu-movie-alerts"
+main = "src/worker.mjs"
+compatibility_date = "2026-11-01"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+PUBLIC_ORIGIN = "http://localhost:4173"
+PUBLIC_URL = "http://localhost:4173/"
+VAPID_PUBLIC_KEY = ""
+VAPID_SUBJECT = ""
+MAX_SUBSCRIBERS = "30"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cgv-alerts"
+# Create your own database and replace this ID before deploying.
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

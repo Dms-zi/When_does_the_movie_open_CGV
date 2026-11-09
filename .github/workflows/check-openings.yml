@@ -1,0 +1,24 @@
+name: Check new CGV dates
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cgv-monitor
+  cancel-in-progress: false
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check Uijeongbu showtimes
+        env:
+          CGV_MONITOR_URL: ${{ vars.CGV_MONITOR_URL }}
+          CGV_POLL_TOKEN: ${{ secrets.CGV_POLL_TOKEN }}
+        run: |
+          test -n "$CGV_MONITOR_URL" && test -n "$CGV_POLL_TOKEN"
+          curl --silent --show-error --fail-with-body --max-time 235 \
+            --request POST --header "Authorization: Bearer $CGV_POLL_TOKEN" \
+            "$CGV_MONITOR_URL/api/internal/poll"
