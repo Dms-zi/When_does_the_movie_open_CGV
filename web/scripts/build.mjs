@@ -6,7 +6,7 @@ execFileSync('python3', ['scripts/source-archive.py']);
 
 await mkdir('dist/client', {recursive:true});
 await cp('public', 'dist/client', {recursive:true});
-const names = ['index.html', 'style.css', 'app.js', 'sw.js', 'config.js', 'icon.svg', 'manifest.webmanifest', 'about.html', 'source.zip'];
+const names = ['index.html', 'style.css', 'app.js', 'sw.js', 'config.js', 'icon.svg', 'manifest.webmanifest', 'about.html', 'connection.html', 'connection.js', 'source.zip'];
 const types = {html:'text/html; charset=utf-8', css:'text/css; charset=utf-8', js:'text/javascript; charset=utf-8', svg:'image/svg+xml', webmanifest:'application/manifest+json', zip:'application/zip'};
 const assets = {};
 for (const name of names) {

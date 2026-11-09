@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>CGV 연결 확인</title>
+  <style>
+    :root{font-family:system-ui,sans-serif;color:#233630;background:#f7f7f2;line-height:1.7}*{box-sizing:border-box}main{max-width:660px;margin:40px auto;padding:0 22px}h1{font-size:28px}h2{font-size:19px;margin-top:32px}p,li{font-size:15px}a{color:#254c41;overflow-wrap:anywhere}label{display:block;margin-bottom:8px}input,button{font:inherit;padding:12px;border-radius:8px;border:1px solid #bdc8bf;max-width:100%}input{display:block;background:white;margin-bottom:14px}button{background:#254c41;color:white;cursor:pointer;width:100%}button:disabled{opacity:.55;cursor:default}pre{background:white;border:1px solid #dfe3d9;padding:18px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.8 system-ui,sans-serif}small{display:block;margin-top:12px;color:#637268}.links{display:flex;flex-wrap:wrap;gap:18px;margin:20px 0}button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid #b07b31;outline-offset:3px}
+  </style>
+  <script src="./connection.js" defer></script>
+</head>
+<body>
+  <main>
+    <a href="./">의정부 영화 알림</a>
+    <h1>CGV 연결 확인</h1>
+    <p>지금 사용하는 브라우저에서 CGV 의정부 상영시간표를 직접 읽어봅니다. 버튼을 누를 때 한 번만 조회합니다.</p>
+    <label for="date">확인할 상영 날짜</label>
+    <input type="date" id="date" required>
+    <button id="check" type="button">이 브라우저에서 조회하기</button>
+    <small>로그인 쿠키 없이 조회합니다. 다시 검사하려면 5분을 기다려 주세요. 결과를 운영자 서버로 전송하지 않습니다.</small>
+    <pre id="result" role="status" aria-live="polite">아직 검사하지 않았습니다.</pre>
+    <div class="links">
+      <a id="direct" target="_blank" rel="noopener noreferrer">같은 API를 새 탭에서 열기</a>
+      <a href="https://cgv.co.kr/cnm/bzplcCgv/0113001" target="_blank" rel="noopener noreferrer">CGV 의정부 열기</a>
+    </div>
+    <p>새 탭에서 JSON이 보이는 것과 이 페이지에서 JSON을 읽을 수 있는 것은 다른 검사입니다. 실패한 요청의 상태는 브라우저가 숨길 수 있어, 이 화면만으로 CORS와 네트워크 오류를 항상 구분할 수는 없습니다.</p>
+    <h2>아이폰의 앱 요청도 확인하려면</h2>
+    <ol>
+      <li>위의 <strong>같은 API를 새 탭에서 열기</strong> 링크 주소를 복사합니다.</li>
+      <li>아이폰의 <strong>단축어</strong>에서 새 단축어를 만들고 <strong>URL</strong> 동작에 주소를 넣습니다.</li>
+      <li><strong>URL 콘텐츠 가져오기</strong>(GET), <strong>빠른 보기</strong> 동작을 차례로 추가하고 실행합니다.</li>
+    </ol>
+    <p><code>statusCode: 0</code>과 <code>data</code> 배열이 나오면 단축어의 요청은 성공한 것입니다. 이는 iOS 앱의 연결 가능성을 판단하는 참고 검사이며, 별도로 개발한 앱의 실제 요청과 백그라운드 동작까지 검증한 것은 아닙니다.</p>
+  </main>
+</body>
+</html>

@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "wrangler dev --test-scheduled",
     "test": "node --test test/*.test.mjs",
-    "check": "node --check src/worker.mjs && node --check public/app.js && node --check public/sw.js",
+    "check": "node --check src/worker.mjs && node --check public/app.js && node --check public/sw.js && node --check public/connection.js",
     "build": "node scripts/build.mjs",
     "preview": "node scripts/preview.mjs",
     "db:local": "wrangler d1 migrations apply cgv-alerts --local",
