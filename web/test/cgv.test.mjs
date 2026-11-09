@@ -5,7 +5,7 @@ const now=new Date('2026-11-09T03:00:00Z');
 const session={siteNo:'0113',movNo:'a',movNm:'영화 A',scnYmd:'20261110',scnsrtTm:'1300',frSeatCnt:20,cntlYn:'N'};
 const response=data=>new Response(JSON.stringify({statusCode:0,data}),{headers:{'Content-Type':'application/json'}});
 test('all auditoriums are combined without IMAX filters',async()=>{
-  const urls=[];const snapshot=await fetchCgvSnapshot({now,pause:async()=>{},fetcher:async url=>{urls.push(String(url));return String(url).includes('BySite')?response([{scnYmd:'20261110'}]):response([{...session,scnsNm:'1관'}, {...session,scnsNm:'IMAX관'}, {...session,movNo:'b',movNm:'영화 B',scnsNm:'4DX관'}]);}});
+  const urls=[];const snapshot=await fetchCgvSnapshot({now,pause:async()=>{},fetcher:async (url,options)=>{assert.equal(options.redirect,'manual');urls.push(String(url));return String(url).includes('BySite')?response([{scnYmd:'20261110'}]):response([{...session,scnsNm:'1관'}, {...session,scnsNm:'IMAX관'}, {...session,movNo:'b',movNm:'영화 B',scnsNm:'4DX관'}]);}});
   assert.equal(snapshot.length,2);assert.equal(snapshot[0].dates.length,1);assert.ok(urls.every(url=>url.includes('siteNo=0113')));assert.ok(urls.every(url=>!url.includes('attrCd')));
 });
 test('403, invalid body, wrong theater and partial failure are errors',async()=>{

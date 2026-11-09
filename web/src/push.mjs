@@ -28,7 +28,7 @@ export async function sendPush(subscription, data, env) {
   const payload = await buildPushPayload({ data, options: { ttl: 3600 } }, subscription, {
     subject: env.VAPID_SUBJECT, publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY,
   });
-  return fetch(subscription.endpoint, { ...payload, redirect: 'error', signal: AbortSignal.timeout(10_000) });
+  return fetch(subscription.endpoint, { ...payload, redirect: 'manual', signal: AbortSignal.timeout(10_000) });
 }
 
 export async function flushPending(db, env, sender = sendPush, now = Date.now()) {

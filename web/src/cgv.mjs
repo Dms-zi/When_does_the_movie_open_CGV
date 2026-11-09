@@ -9,7 +9,7 @@ async function cgvRequest(path, params, fetcher, signal) {
   url.search = new URLSearchParams({ coCd: 'A420', siteNo: THEATER.id, ...params });
   const response = await fetcher(url, {
     headers: { Accept: 'application/json', Referer: 'https://cgv.co.kr/cnm/movieBook/ticket' },
-    redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
+    redirect: 'manual', signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
   });
   if (!response.ok) throw new Error(`CGV 조회 실패 (HTTP ${response.status}). 기존 알림 기록을 유지합니다.`);
   let body;

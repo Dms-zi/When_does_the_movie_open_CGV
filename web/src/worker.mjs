@@ -97,7 +97,8 @@ export async function runMonitor(env, provider = fetchCgvSnapshot, sender, now =
       const snapshot = await provider();
       await applySnapshot(env.DB, snapshot, now);
     } catch (error) {
-      await stateStatement(env.DB, 'last_error', error.message.slice(0, 240)).run();
+      const message = /[가-힣]/.test(error.message) ? error.message.slice(0, 240) : '상영정보 조회 중 문제가 생겼어요. 잠시 후 다시 확인해 주세요.';
+      await stateStatement(env.DB, 'last_error', message).run();
       console.error('CGV monitor failed:', error.message);
     }
     // Retry already confirmed openings even if this poll failed. Never send a
