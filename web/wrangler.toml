@@ -3,9 +3,10 @@ main = "src/worker.mjs"
 compatibility_date = "2026-11-01"
 
 [triggers]
-crons = ["*/5 * * * *"]
+crons = []
 
 [vars]
+CGV_COLLECTION_ENABLED = "false"
 PUBLIC_ORIGIN = "http://localhost:4173"
 PUBLIC_URL = "http://localhost:4173/"
 VAPID_PUBLIC_KEY = ""

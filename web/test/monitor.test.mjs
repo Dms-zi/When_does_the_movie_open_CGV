@@ -46,9 +46,53 @@ test('history survives database/process restart',async()=>{
 });
 test('failed/partial source fetch preserves baseline and records no alerts',async()=>{
   const db=database();await applySnapshot(db,[movie()],now);await subscribe(db);
-  await runMonitor({DB:db},async()=>{throw new Error('HTTP 403');},undefined,now+300000);
+  await runMonitor({DB:db,CGV_COLLECTION_ENABLED:'true'},async()=>{throw new Error('source unavailable');},undefined,now+300000);
   assert.equal((await readState(db)).last_success,String(now));assert.equal((await deliveries(db)).length,0);
-  await runMonitor({DB:db},async()=>[movie()],undefined,now+600000);assert.equal((await deliveries(db)).length,0);db.sql.close();
+  await runMonitor({DB:db,CGV_COLLECTION_ENABLED:'true'},async()=>[movie()],undefined,now+600000);assert.equal((await deliveries(db)).length,0);db.sql.close();
+});
+test('collection is off by default, including authenticated manual polls',async()=>{
+  const db=database(),environment={DB:db,PUBLIC_ORIGIN:'https://example.com',POLL_TOKEN:'secret'};
+  let calls=0;
+  await runMonitor(environment,async()=>{calls++;return [movie()];},undefined,now);
+  assert.equal(calls,0);assert.equal((await readState(db)).last_success,undefined);
+  const response=await handleRequest(new Request('https://api.test/api/internal/poll',{method:'POST',headers:{Authorization:'Bearer secret'}}),environment);
+  assert.equal(response.status,503);
+  const catalog=await (await handleRequest(new Request('https://api.test/api/movies'),environment)).json();
+  assert.equal(catalog.collectionPaused,true);assert.equal(catalog.pushReady,false);db.sql.close();
+});
+test('CGV 403 and 429 stop future calls even after process restart',async()=>{
+  for(const status of [403,429]){
+    const directory=mkdtempSync(join(tmpdir(),'cgv-stop-')),path=join(directory,'state.sqlite');
+    let db=database(path),calls=0;
+    await applySnapshot(db,[movie()],now);await subscribe(db);
+    await runMonitor({DB:db,CGV_COLLECTION_ENABLED:'true'},async()=>{calls++;throw Object.assign(new Error('denied'),{cgvStatus:status});},undefined,now+300000);
+    db.sql.close();db=database(path,false);
+    await runMonitor({DB:db,CGV_COLLECTION_ENABLED:'true'},async()=>{calls++;return [movie()];},undefined,now+86400000);
+    assert.equal(calls,1);assert.equal((await readState(db)).last_success,String(now));assert.equal((await deliveries(db)).length,0);
+    db.sql.close();rmSync(directory,{recursive:true});
+  }
+});
+test('manual calls cannot exceed the five-minute interval or daily limit',async()=>{
+  const db=database(),environment={DB:db,CGV_COLLECTION_ENABLED:'true'};let calls=0;
+  const provider=async()=>{calls++;return [movie()];};
+  await runMonitor(environment,provider,undefined,now);
+  await runMonitor(environment,provider,undefined,now+1);
+  await runMonitor(environment,provider,undefined,now+300000);
+  assert.equal(calls,2);
+  await db.prepare("UPDATE state SET value='288' WHERE key='poll_count'").run();
+  await runMonitor(environment,provider,undefined,now+600000);assert.equal(calls,2);
+  await runMonitor(environment,provider,undefined,now+86400000);assert.equal(calls,3);
+  assert.equal((await readState(db)).poll_count,'1');db.sql.close();
+});
+test('temporary failures back off and a successful fetch resets the delay',async()=>{
+  const db=database(),environment={DB:db,CGV_COLLECTION_ENABLED:'true'};let calls=0;
+  const fail=async()=>{calls++;throw new Error('temporary');};
+  await runMonitor(environment,fail,undefined,now);
+  await runMonitor(environment,fail,undefined,now+300000);
+  await runMonitor(environment,fail,undefined,now+600000);
+  assert.equal(calls,2);
+  await runMonitor(environment,async()=>{calls++;return [movie()];},undefined,now+900000);
+  assert.equal(calls,3);assert.equal((await readState(db)).poll_failures,'0');db.sql.close();
 });
 test('invalid snapshot does not change successful data',async()=>{
   const db=database();await applySnapshot(db,[movie()],now);

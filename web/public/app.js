@@ -153,5 +153,5 @@ $('demo-banner').hidden = !demo;
 if ('serviceWorker' in navigator && !demo) navigator.serviceWorker.register('./sw.js', {scope:'./'}).then(value => {registration=value;}).catch(() => feedback('알림 기능을 시작하지 못했어요. 페이지를 다시 열어주세요.', true));
 await loadMovies();
 if (!demo) await restore();
-setInterval(() => { if (!document.hidden && !demo) loadMovies(); }, 300_000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !demo) loadMovies(); });
+setInterval(() => { if (!document.hidden && !demo && !catalog?.collectionPaused) loadMovies(); }, 300_000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !demo && !catalog?.collectionPaused) loadMovies(); });

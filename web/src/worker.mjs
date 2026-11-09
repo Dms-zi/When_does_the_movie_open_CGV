@@ -1,9 +1,11 @@
 import { fetchCgvSnapshot } from './cgv.mjs';
-import { INTERVAL_SECONDS, THEATER } from './detection.mjs';
+import { INTERVAL_SECONDS, THEATER, koreaToday } from './detection.mjs';
 import { acquirePollLock, applySnapshot, getCatalog, readState, saveSubscription, stateStatement } from './store.mjs';
 import { flushPending, pushConfigured, sha256, validateSubscription } from './push.mjs';
 
 const STALE_AFTER_MS = 15 * 60_000;
+const PAUSED_MESSAGE = '현재 상영정보 자동 조회를 중지했습니다.';
+const collectionEnabled = env => env.CGV_COLLECTION_ENABLED === 'true';
 const failure = (message, status = 400) => Object.assign(new Error(message), { status });
 
 async function bearerHash(request) {
@@ -44,6 +46,7 @@ export async function handleRequest(request, env) {
     if (path === '/api/internal/poll' && request.method === 'POST') {
       const supplied = request.headers.get('Authorization')?.replace(/^Bearer /, '') || '';
       if (!env.POLL_TOKEN || await sha256(supplied) !== await sha256(env.POLL_TOKEN)) throw failure('인증이 필요합니다.', 401);
+      if (!collectionEnabled(env)) throw failure(PAUSED_MESSAGE, 503);
       await runMonitor(env);
       const state = await readState(env.DB);
       return respond({ lastCheckedAt: Number(state.last_success) || null, error: state.last_error || null }, state.last_error ? 503 : 200);
@@ -52,10 +55,10 @@ export async function handleRequest(request, env) {
       const { state, movies } = await getCatalog(env.DB);
       const lastCheckedAt = state.last_success ? Number(state.last_success) : null;
       return respond({
-        theater: THEATER, movies, intervalSeconds: INTERVAL_SECONDS, lastCheckedAt,
-        status: !lastCheckedAt ? 'unverified' : state.last_error || Date.now() - lastCheckedAt > STALE_AFTER_MS ? 'stale' : 'ok',
-        message: state.last_error || (!lastCheckedAt ? '아직 CGV 상영정보 연결을 확인하지 못했어요.' : ''),
-        pushReady: pushConfigured(env), publicKey: env.VAPID_PUBLIC_KEY || null,
+        theater: THEATER, movies, intervalSeconds: INTERVAL_SECONDS, lastCheckedAt, collectionPaused: !collectionEnabled(env),
+        status: !lastCheckedAt ? 'unverified' : !collectionEnabled(env) || state.last_error || Date.now() - lastCheckedAt > STALE_AFTER_MS ? 'stale' : 'ok',
+        message: !collectionEnabled(env) ? PAUSED_MESSAGE : state.last_error || (!lastCheckedAt ? '아직 CGV 상영정보 연결을 확인하지 못했어요.' : ''),
+        pushReady: collectionEnabled(env) && pushConfigured(env), publicKey: env.VAPID_PUBLIC_KEY || null,
       });
     }
     if (path === '/api/subscription') {
@@ -71,6 +74,7 @@ export async function handleRequest(request, env) {
         return respond({ active: false });
       }
       if (request.method === 'PUT') {
+        if (!collectionEnabled(env)) throw failure(PAUSED_MESSAGE, 503);
         if (!pushConfigured(env)) throw failure('아직 알림 연결을 준비하고 있어요.', 503);
         const state = await readState(env.DB);
         if (!state.last_success || state.last_error || Date.now() - Number(state.last_success) > STALE_AFTER_MS) throw failure('최신 상영정보를 확인한 뒤 알림을 신청할 수 있어요.', 503);
@@ -91,15 +95,37 @@ export async function handleRequest(request, env) {
 }
 
 export async function runMonitor(env, provider = fetchCgvSnapshot, sender, now = Date.now()) {
+  if (!collectionEnabled(env)) return;
   if (!await acquirePollLock(env.DB, now)) return;
   try {
+    const state = await readState(env.DB);
+    if (state.poll_blocked || Number(state.poll_retry_at || 0) > now) return;
+    if (state.poll_last_attempt && now - Number(state.poll_last_attempt) < INTERVAL_SECONDS * 1000) return;
+    const day = koreaToday(new Date(now));
+    const count = state.poll_day === day ? Number(state.poll_count || 0) : 0;
+    if (count >= 288) return;
+    await env.DB.batch([
+      stateStatement(env.DB, 'poll_last_attempt', now),
+      stateStatement(env.DB, 'poll_day', day),
+      stateStatement(env.DB, 'poll_count', count + 1),
+    ]);
     try {
       const snapshot = await provider();
       await applySnapshot(env.DB, snapshot, now);
+      await env.DB.batch([stateStatement(env.DB, 'poll_failures', '0'), stateStatement(env.DB, 'poll_retry_at', '0')]);
     } catch (error) {
-      const message = /[가-힣]/.test(error.message) ? error.message.slice(0, 240) : '상영정보 조회 중 문제가 생겼어요. 잠시 후 다시 확인해 주세요.';
-      await stateStatement(env.DB, 'last_error', message).run();
+      const blocked = [403, 429].includes(error.cgvStatus);
+      const failures = Math.min(Number(state.poll_failures || 0) + 1, 5);
+      const message = blocked ? `CGV 조회가 거절되어 자동 확인을 중지했습니다 (HTTP ${error.cgvStatus}).`
+        : /[가-힣]/.test(error.message) ? error.message.slice(0, 240) : '상영정보 조회 중 문제가 생겼어요. 잠시 후 다시 확인해 주세요.';
+      await env.DB.batch([
+        stateStatement(env.DB, 'last_error', message),
+        stateStatement(env.DB, 'poll_failures', failures),
+        stateStatement(env.DB, 'poll_retry_at', now + Math.min(3600_000, 300_000 * 2 ** (failures - 1))),
+        ...(blocked ? [stateStatement(env.DB, 'poll_blocked', error.cgvStatus)] : []),
+      ]);
       console.error('CGV monitor failed:', error.message);
+      if (blocked) return;
     }
     // Retry already confirmed openings even if this poll failed. Never send a
     // health-check, unchanged-snapshot or scraper-error notification.

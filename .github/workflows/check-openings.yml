@@ -1,7 +1,6 @@
 name: Check new CGV dates
 on:
-  schedule:
-    - cron: '*/5 * * * *'
+  # Re-enable scheduling only after CGV permits the intended use.
   workflow_dispatch:
 permissions:
   contents: read

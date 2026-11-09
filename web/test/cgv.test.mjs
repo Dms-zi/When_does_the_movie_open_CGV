@@ -9,7 +9,7 @@ test('all auditoriums are combined without IMAX filters',async()=>{
   assert.equal(snapshot.length,2);assert.equal(snapshot[0].dates.length,1);assert.ok(urls.every(url=>url.includes('siteNo=0113')));assert.ok(urls.every(url=>!url.includes('attrCd')));
 });
 test('403, invalid body, wrong theater and partial failure are errors',async()=>{
-  await assert.rejects(fetchCgvSnapshot({now,pause:async()=>{},fetcher:async()=>new Response('blocked',{status:403})}),/403/);
+  for(const status of [403,429])await assert.rejects(fetchCgvSnapshot({now,pause:async()=>{},fetcher:async()=>new Response('blocked',{status})}),error=>error.cgvStatus===status);
   await assert.rejects(fetchCgvSnapshot({now,pause:async()=>{},fetcher:async()=>response({})}));
   assert.throws(()=>sessionsToMovies([{...session,siteNo:'0013'}],'2026-11-10',now));
   await assert.rejects(fetchCgvSnapshot({now,pause:async()=>{},fetcher:async url=>String(url).includes('BySite')?response([{scnYmd:'20261110'}]):new Response('error',{status:500})}));

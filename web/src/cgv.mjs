@@ -11,7 +11,7 @@ async function cgvRequest(path, params, fetcher, signal) {
     headers: { Accept: 'application/json', Referer: 'https://cgv.co.kr/cnm/movieBook/ticket' },
     redirect: 'manual', signal: AbortSignal.any([signal, AbortSignal.timeout(15_000)]),
   });
-  if (!response.ok) throw new Error(`CGV 조회 실패 (HTTP ${response.status}). 기존 알림 기록을 유지합니다.`);
+  if (!response.ok) throw Object.assign(new Error(`CGV 조회 실패 (HTTP ${response.status}). 기존 알림 기록을 유지합니다.`), { cgvStatus: response.status });
   let body;
   try { body = await response.json(); } catch { throw new Error('CGV가 상영정보 대신 다른 페이지를 반환했습니다.'); }
   if (body?.statusCode !== 0 || !Array.isArray(body.data)) throw new Error('CGV 응답 형식이 변경되었거나 조회가 거절되었습니다.');
