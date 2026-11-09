@@ -19,6 +19,16 @@ jobs:
           CGV_POLL_TOKEN: ${{ secrets.CGV_POLL_TOKEN }}
         run: |
           test -n "$CGV_MONITOR_URL" && test -n "$CGV_POLL_TOKEN"
-          curl --silent --show-error --fail-with-body --max-time 235 \
+          status=$(curl --silent --show-error --max-time 235 \
             --request POST --header "Authorization: Bearer $CGV_POLL_TOKEN" \
-            "$CGV_MONITOR_URL/api/internal/poll"
+            --output check-result.json --write-out '%{http_code}' \
+            "$CGV_MONITOR_URL/api/internal/poll")
+          cat check-result.json
+          if [ "$status" = 200 ]; then
+            exit 0
+          fi
+          if [ "$status" = 503 ] && jq -e 'has("lastCheckedAt") and .error != null' check-result.json >/dev/null; then
+            echo 'CGV check unavailable; status is shown on the website. No notification sent.'
+            exit 0
+          fi
+          exit 1
